@@ -11,6 +11,7 @@ const config = {
     transferProxyAddress: '0x882d80D3a191859d64477eb78Cca46599307ec1C',
     vaultAddress: '0x5B67871C3a857dE81A1ca0f9F7945e5670D986Dc',
     wrappedEtherAddress: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    linearAuctionPriceCurve: '0xc7124963Ab16C33E5bF421D4c0090116622B3074'
   };
 
   export default config;

@@ -177,4 +177,86 @@ task("mint-set", "Mints a rebalancing set token")
     console.log("Mint complete");
 });
 
+task("propose-rebalance", "Propose a rebalance to a new set")
+  .addParam("set", "address of the set token")
+  .addParam("nextSet", "address of the new allocation")
+  .addParam("auctionTimeToPivot", "length of manager defined portion of the auction")
+  .addParam("auctionStartPrice", "price the auction starts at")
+  .addParam("auctionPivotPrice", "price the manager defined portion of the auction terminates at")
+  .setAction(async(taskArgs, {buidlerArguments, web3, run, network}) => {
+    const config = getConfig(buidlerArguments.network);
+    const setProtocol = new SetProtocol(web3, config);
+    const auctionLibrary = config.linearAuctionPriceCurve;
+    const auctionTimeToPivot = 3600; // 3600 seconds = 60 minutes
+
+    const startPriceRatio = 0.90;
+    const priceRatioStep = 0.005;
+
+    const auctionPriceDivisor = 1000;
+    const auctionStartPrice = startPriceRatio * auctionPriceDivisor // equals 900
+    const auctionPivotPrice = auctionStartPrice + ((auctionTimeToPivot/60) * priceRatioStep) * auctionPriceDivisor // equals 1200
+
+    const txOpts = {
+      from: (await web3.eth.getAccounts())[0],
+      gas: 4000000,
+      gasPrice: network.config.gasPrice,
+    };
+
+    const txHash = setProtocol.rebalancing.proposeAsync(
+      taskArgs.set,   // rebalancingSetTokenAddress
+      taskArgs.nextSet,  // nextSetAddress
+      auctionLibrary,         // address of linear auction library
+      new BigNumber(auctionTimeToPivot),
+      new BigNumber(auctionStartPrice),
+      new BigNumber(auctionPivotPrice),
+      txOpts,
+    );
+
+    console.log(`Rebalance proposed tx: ${txHash}`);
+});
+
+task("submit-bid", "Submit a bit to the dutch auction rebalance")
+  .addParam("set", "address of the rebalancing set")
+  .addParam("amount", "amount to rebalance")
+  .setAction(async(taskArgs, {buidlerArguments, web3, run, network}) => {
+    const config = getConfig(buidlerArguments.network);
+    const setProtocol = new SetProtocol(web3, config);
+
+    const txOpts = {
+      from: (await web3.eth.getAccounts())[0],
+      gas: 4000000,
+      gasPrice: network.config.gasPrice,
+    };
+
+    const txHash = await setProtocol.rebalancing.bidAsync(
+      taskArgs.set,
+      new BigNumber(taskArgs.amount * 10 ** 18),
+      true,
+      true,
+      txOpts
+    );
+
+    console.log(`Bid submitted tx: ${txHash}`);
+});
+
+task("settle-rebalance", "Submit a rebalance")
+  .addParam("set")
+  .setAction(async(taskArgs, {buidlerArguments, web3, run, network}) => {
+    const config = getConfig(buidlerArguments.network);
+    const setProtocol = new SetProtocol(web3, config);
+
+    const txOpts = {
+      from: (await web3.eth.getAccounts())[0],
+      gas: 4000000,
+      gasPrice: network.config.gasPrice,
+    };
+
+    const txHash = await setProtocol.rebalancing.settleRebalanceAsync(
+      taskArgs.set, // rebalancingSetTokenAddress
+      txOpts
+    );
+
+    console.log(`Rebalance settled: ${txHash}`);
+});
+
 export default config;
