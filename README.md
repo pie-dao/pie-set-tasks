@@ -1,2 +1,2 @@
-# pie-smart-contract-boilerplate
-Boilerplate for smart contract development
+# Pie Set Tasks
+Tasks to manage set protocol tokens
