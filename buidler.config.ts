@@ -61,7 +61,7 @@ const config: ExtendedBuidlerConfig = {
   }
 };
 
-internalTask("create-initial-set", "Creates the initial (non rebalancing set)")
+task("create-set", "Creates the initial (non rebalancing set)")
   .addParam("allocation", "path to the allocation")
   .addParam("symbol", "token symbol")
   .addParam("name", "token name")
@@ -96,7 +96,11 @@ internalTask("create-initial-set", "Creates the initial (non rebalancing set)")
       txOpts,
     );
 
-    return await setProtocol.getSetAddressFromCreateTxHashAsync(txHash);
+    const setAddress = await setProtocol.getSetAddressFromCreateTxHashAsync(txHash);
+    
+    console.log(`Base set deployed at: ${setAddress}`);
+
+    return setAddress;
 });
 
 task("deploy-rebalancing-set", "Deploy rebalancing set token from allocation")
@@ -109,7 +113,7 @@ task("deploy-rebalancing-set", "Deploy rebalancing set token from allocation")
     const config = getConfig(buidlerArguments.network);
     const setProtocol = new SetProtocol(web3, config);
 
-    const initialSetAddress = await run("create-initial-set", taskArgs);
+    const initialSetAddress = await run("create-set", taskArgs);
     const initialUnitShares = new BigNumber(10 ** 10);
     
     const proposalPeriod = taskArgs.proposalPeriod;
@@ -180,9 +184,9 @@ task("mint-set", "Mints a rebalancing set token")
 task("propose-rebalance", "Propose a rebalance to a new set")
   .addParam("set", "address of the set token")
   .addParam("nextSet", "address of the new allocation")
-  .addParam("auctionTimeToPivot", "length of manager defined portion of the auction")
-  .addParam("auctionStartPrice", "price the auction starts at")
-  .addParam("auctionPivotPrice", "price the manager defined portion of the auction terminates at")
+  // .addParam("auctionTimeToPivot", "length of manager defined portion of the auction")
+  // .addParam("auctionStartPrice", "price the auction starts at")
+  // .addParam("auctionPivotPrice", "price the manager defined portion of the auction terminates at")
   .setAction(async(taskArgs, {buidlerArguments, web3, run, network}) => {
     const config = getConfig(buidlerArguments.network);
     const setProtocol = new SetProtocol(web3, config);
@@ -202,7 +206,7 @@ task("propose-rebalance", "Propose a rebalance to a new set")
       gasPrice: network.config.gasPrice,
     };
 
-    const txHash = setProtocol.rebalancing.proposeAsync(
+    const txHash = await setProtocol.rebalancing.proposeAsync(
       taskArgs.set,   // rebalancingSetTokenAddress
       taskArgs.nextSet,  // nextSetAddress
       auctionLibrary,         // address of linear auction library
@@ -213,6 +217,26 @@ task("propose-rebalance", "Propose a rebalance to a new set")
     );
 
     console.log(`Rebalance proposed tx: ${txHash}`);
+});
+
+task("start-rebalance", "starts rebalance after proposal period ended")
+  .addParam("set", "address of the rebalancing set")
+  .setAction(async(taskArgs, {buidlerArguments, web3, run, network}) => {
+    const config = getConfig(buidlerArguments.network);
+    const setProtocol = new SetProtocol(web3, config);
+
+    const txOpts = {
+      from: (await web3.eth.getAccounts())[0],
+      gas: 4000000,
+      gasPrice: network.config.gasPrice,
+    };
+
+    const txHash = await setProtocol.rebalancing.startRebalanceAsync(
+      taskArgs.set,
+      txOpts
+    );
+
+    console.log(`Rebalance started tx: ${txHash}`);
 });
 
 task("submit-bid", "Submit a bit to the dutch auction rebalance")
